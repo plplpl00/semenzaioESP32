@@ -1,0 +1,5 @@
+esp32async/ESPAsyncWebServer@^3.10.0
+mobizt/Firebase Arduino Client Library for ESP8266 and ESP32@^4.4.17
+esp32async/AsyncTCP@^3.4.10
+milesburton/DallasTemperature@^4.0.6
+paulstoffregen/OneWire@^2.3.8
