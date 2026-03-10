@@ -1,51 +1,40 @@
 // ============================================================
 //  EnvironmentMonitor.h
-//  Posizione: src/monitors/EnvironmentMonitor.h
+//  Posizione: src/4.monitors/EnvironmentMonitor.h
 //
-//  Legge DS18B20 (temperatura) e SHT31 (umidità + temperatura).
-//  Applica media mobile e cross-check tra i due sensori.
-//  Scrive su Environment — non conosce altri moduli.
-//
-//  Dipendenze: config/SystemConfig.h, model/Environment.h,
-//              lib/DS18B20Sensor, lib/SHT31Sensor
+//  Legge DS18B20 interno, DS18B20 esterno, SHT31.
+//  Calcola delta termico interno-esterno.
 // ============================================================
 #pragma once
-
 #include <DS18B20Sensor.h>
 #include <SHT31Sensor.h>
 #include "utility.h"
-#include <3.system/SystemConfig.h>
-#include <Environment.h>
+#include "2.model/Environment.h"
 
 class EnvironmentMonitor {
 public:
-    explicit EnvironmentMonitor(const EnvironmentConfig& config);
-
-    // Inizializza i sensori. Ritorna true se almeno uno è trovato.
+    EnvironmentMonitor();
     bool begin();
-
-    // Chiamata nel loop() — non bloccante.
     void update(Environment& out);
 
 private:
-    const EnvironmentConfig& _cfg;
-
-    // Librerie custom
-    DS18B20Sensor _ds18b20;   // usa SONDA_INTERNA da utility.h
-    SHT31Sensor   _sht31;     // usa ADDR_SHT31 da utility.h
+    DS18B20Sensor _ds18b20Int;    // sonda interna
+    DS18B20Sensor _ds18b20Ext;    // sonda esterna
+    SHT31Sensor   _sht31;
 
     // Media mobile
-    float    _tempSamples[8] = {};
-    float    _humSamples[8]  = {};
-    uint8_t  _sampleIndex    = 0;
-    uint8_t  _sampleCount    = 0;
+    static const uint8_t AVG_SAMPLES = 5;
+    float    _tempSamples[AVG_SAMPLES]    = {};
+    float    _tempExtSamples[AVG_SAMPLES] = {};
+    float    _humSamples[AVG_SAMPLES]     = {};
+    uint8_t  _sampleIndex = 0;
+    uint8_t  _sampleCount = 0;
 
     // Timer non bloccante
-    uint32_t _lastReadMs         = 0;
-    bool     _conversionStarted  = false;
+    uint32_t _lastReadMs = 0;
 
-    void  _readSensors   (Environment& out);
-    float _movingAverage (float* samples, float newVal);
-    void  _updateAlerts  (Environment& out);
-    bool  _crossCheck    (float tempDS, float tempSHT) const;
+    void  _readSensors(Environment& out);
+    float _movingAverage(float* samples, float newVal);
+    void  _updateDelta(Environment& out);
+    bool  _crossCheck(float tempDS, float tempSHT) const;
 };

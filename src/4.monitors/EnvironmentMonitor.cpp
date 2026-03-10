@@ -1,145 +1,105 @@
 // ============================================================
 //  EnvironmentMonitor.cpp
-//  Posizione: src/monitors/EnvironmentMonitor.cpp
+//  Posizione: src/4.monitors/EnvironmentMonitor.cpp
 // ============================================================
-
-#include "utility.h"
 #include <Arduino.h>
+#include "utility.h"
 #include "EnvironmentMonitor.h"
 
-// ─────────────────────────────────────────────────────────────
-//  Costruttore
-//  DS18B20Sensor riceve pin + indirizzo da utility.h
-//  SHT31Sensor   riceve indirizzo I2C da utility.h
-// ─────────────────────────────────────────────────────────────
-EnvironmentMonitor::EnvironmentMonitor(const EnvironmentConfig& config)
-    : _cfg(config),
-      _ds18b20(PIN_ONE_WIRE, SONDA_INTERNA),
+EnvironmentMonitor::EnvironmentMonitor()
+    : _ds18b20Int(PIN_ONE_WIRE, SONDA_INTERNA),
+      _ds18b20Ext(PIN_ONE_WIRE, SONDA_ESTERNA),
       _sht31(ADDR_SHT31)
 {}
 
-// ─────────────────────────────────────────────────────────────
-//  begin()
-// ─────────────────────────────────────────────────────────────
 bool EnvironmentMonitor::begin() {
-    bool ds18b20Ok = _ds18b20.begin();
-    bool sht31Ok   = _sht31.begin();
+    bool intOk  = _ds18b20Int.begin();
+    bool extOk  = _ds18b20Ext.begin();
+    bool shtOk  = _sht31.begin();
 
-    if (!ds18b20Ok) LOG_WARNING("EnvMonitor", "DS18B20 non trovato");
-    if (!sht31Ok)   LOG_WARNING("EnvMonitor", "SHT31 non trovato su indirizzo 0x%02X", ADDR_SHT31);
+    if (!intOk) LOG_WARNING("EnvMon", "DS18B20 interno non trovato");
+    if (!extOk) LOG_WARNING("EnvMon", "DS18B20 esterno non trovato (opzionale)");
+    if (!shtOk) LOG_WARNING("EnvMon", "SHT31 non trovato su 0x%02X", ADDR_SHT31);
 
-    if (ds18b20Ok && sht31Ok) {
-        LOG_SUCCESS("EnvMonitor", "Entrambi i sensori inizializzati");
-    } else if (ds18b20Ok || sht31Ok) {
-        LOG_WARNING("EnvMonitor", "Un sensore non trovato — funzionamento degradato");
-    } else {
-        LOG_ERROR("EnvMonitor", "Nessun sensore trovato");
+    if (intOk && shtOk) {
+        LOG_SUCCESS("EnvMon", "Sensori principali OK%s",
+                    extOk ? " + sonda esterna" : "");
     }
 
-    return ds18b20Ok || sht31Ok;
+    return intOk || shtOk;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  update() — non bloccante, rispetta readInterval
-// ─────────────────────────────────────────────────────────────
 void EnvironmentMonitor::update(Environment& out) {
     uint32_t now = millis();
-    if (now - _lastReadMs < _cfg.readInterval) return;
+    if (now - _lastReadMs < ENV_READ_INTERVAL) return;
     _lastReadMs = now;
 
     _readSensors(out);
-    _updateAlerts(out);
+    _updateDelta(out);
     out.timestamp = now;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  _readSensors()
-// ─────────────────────────────────────────────────────────────
 void EnvironmentMonitor::_readSensors(Environment& out) {
-
-    // ── DS18B20 ──────────────────────────────────────────────
-    TempReading ds = _ds18b20.read();
-
-    if (ds.isValid()) {
-        out.temperature  = _movingAverage(_tempSamples, ds.value);
-        out.tempStatus   = SensorStatus::OK;
+    // ── DS18B20 Interno ──────────────────────────────────
+    TempReading dsInt = _ds18b20Int.read();
+    if (dsInt.isValid()) {
+        out.temperature = _movingAverage(_tempSamples, dsInt.value);
+        out.tempStatus  = SensorStatus::OK;
     } else {
-        out.tempStatus   = SensorStatus::ERROR;
-        LOG_WARNING("EnvMonitor", "DS18B20: %s", DS18B20Sensor::errorToString(ds.error));
+        out.tempStatus = SensorStatus::ERROR;
     }
 
-    // ── SHT31 ────────────────────────────────────────────────
-    SHT31Reading sht = _sht31.read();
+    // ── DS18B20 Esterno ──────────────────────────────────
+    TempReading dsExt = _ds18b20Ext.read();
+    if (dsExt.isValid()) {
+        out.tempExternal  = _movingAverage(_tempExtSamples, dsExt.value);
+        out.tempExtStatus = SensorStatus::OK;
+    } else {
+        out.tempExtStatus = SensorStatus::ERROR;
+    }
 
+    // ── SHT31 ────────────────────────────────────────────
+    SHT31Reading sht = _sht31.read();
     if (sht.isValid()) {
-        out.humidity     = _movingAverage(_humSamples, sht.humidity);
-        out.tempSHT31    = sht.temperature;
+        out.humidity       = _movingAverage(_humSamples, sht.humidity);
+        out.tempSHT31      = sht.temperature;
         out.humidityStatus = SensorStatus::OK;
     } else {
         out.humidityStatus = SensorStatus::ERROR;
-        LOG_WARNING("EnvMonitor", "SHT31: %s", SHT31Sensor::errorToString(sht.error));
     }
 
-    // ── Cross-check ──────────────────────────────────────────
+    // ── Cross-check ──────────────────────────────────────
     if (out.tempStatus == SensorStatus::OK &&
         out.humidityStatus == SensorStatus::OK) {
         if (!_crossCheck(out.temperature, out.tempSHT31)) {
-            LOG_WARNING("EnvMonitor", "Cross-check fallito: DS18B20=%.1f°C SHT31=%.1f°C",
+            LOG_WARNING("EnvMon", "Cross-check: DS18B20=%.1f SHT31=%.1f",
                         out.temperature, out.tempSHT31);
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  _movingAverage()
-// ─────────────────────────────────────────────────────────────
+void EnvironmentMonitor::_updateDelta(Environment& out) {
+    if (out.tempStatus == SensorStatus::OK &&
+        out.tempExtStatus == SensorStatus::OK) {
+        out.tempDelta  = out.temperature - out.tempExternal;
+        out.deltaValid = true;
+    } else {
+        out.deltaValid = false;
+    }
+}
+
 float EnvironmentMonitor::_movingAverage(float* samples, float newVal) {
     samples[_sampleIndex] = newVal;
-
-    uint8_t count = min((uint8_t)(_sampleCount + 1), _cfg.movingAvgSamples);
-    if (_sampleCount < _cfg.movingAvgSamples) _sampleCount++;
+    uint8_t count = min((uint8_t)(_sampleCount + 1), AVG_SAMPLES);
+    if (_sampleCount < AVG_SAMPLES) _sampleCount++;
 
     float sum = 0;
     for (uint8_t i = 0; i < count; i++) sum += samples[i];
 
-    _sampleIndex = (_sampleIndex + 1) % _cfg.movingAvgSamples;
+    _sampleIndex = (_sampleIndex + 1) % AVG_SAMPLES;
     return sum / count;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  _updateAlerts()
-// ─────────────────────────────────────────────────────────────
-void EnvironmentMonitor::_updateAlerts(Environment& out) {
-    // Reset
-    out.tempAlert     = AlertLevel::OK;
-    out.humidityAlert = AlertLevel::OK;
-
-    if (out.tempStatus != SensorStatus::OK) return;
-
-    // Temperatura
-    if (out.temperature >= 24.0f) {
-        out.tempAlert = AlertLevel::CRITICAL;
-        LOG_ERROR("EnvMonitor", "CRITICO: Temp=%.1f°C", out.temperature);
-    } else if (out.temperature >= 21.0f) {
-        out.tempAlert = AlertLevel::WARNING;
-        LOG_WARNING("EnvMonitor", "WARNING: Temp=%.1f°C", out.temperature);
-    }
-
-    // Umidità
-    if (out.humidityStatus != SensorStatus::OK) return;
-
-    if (out.humidity >= 88.0f) {
-        out.humidityAlert = AlertLevel::CRITICAL;
-        LOG_ERROR("EnvMonitor", "CRITICO: Hum=%.1f%%", out.humidity);
-    } else if (out.humidity >= 75.0f) {
-        out.humidityAlert = AlertLevel::WARNING;
-        LOG_WARNING("EnvMonitor", "WARNING: Hum=%.1f%%", out.humidity);
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-//  _crossCheck()
-// ─────────────────────────────────────────────────────────────
 bool EnvironmentMonitor::_crossCheck(float tempDS, float tempSHT) const {
-    return abs(tempDS - tempSHT) <= _cfg.maxTempDelta;
+    return abs(tempDS - tempSHT) <= 3.0f;
 }

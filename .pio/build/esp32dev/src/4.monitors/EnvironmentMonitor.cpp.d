@@ -1,6 +1,5 @@
 .pio/build/esp32dev/src/4.monitors/EnvironmentMonitor.cpp.o: \
- src/4.monitors/EnvironmentMonitor.cpp include/utility.h \
- lib/DS18B20Sensor/DS18B20Sensor.h \
+ src/4.monitors/EnvironmentMonitor.cpp \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp_arduino_version.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp8266-compat.h \
@@ -45,6 +44,7 @@
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/freertos_stats.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/io_pin_remap.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
+ include/utility.h lib/DS18B20Sensor/DS18B20Sensor.h \
  .pio/libdeps/esp32dev/OneWire/OneWire.h \
  .pio/libdeps/esp32dev/OneWire/util/OneWire_direct_regtype.h \
  .pio/libdeps/esp32dev/DallasTemperature/DallasTemperature.h \
@@ -89,5 +89,4 @@
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src/Wire.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/HardwareI2C.h \
- src/3.system/SystemConfig.h src/2.model/Environment.h \
- src/1.core/SensorTypes.h
+ src/2.model/Environment.h src/1.core/SensorTypes.h

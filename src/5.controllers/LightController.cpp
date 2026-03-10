@@ -1,15 +1,9 @@
 // ============================================================
 //  LightController.cpp
-//  Posizione: src/controllers/LightController.cpp
+//  Posizione: src/5.controllers/LightController.cpp
 // ============================================================
-
-#include <time.h>
+#include <Arduino.h>
 #include "LightController.h"
-#include "utility.h"
-
-LightController::LightController(const LightConfig& config)
-    : _cfg(config)
-{}
 
 void LightController::begin() {
     pinMode(PIN_LIGHT_RELAY, OUTPUT);
@@ -17,13 +11,14 @@ void LightController::begin() {
     LOG_SUCCESS("LightCtrl", "Inizializzato — relay spento");
 }
 
-void LightController::update(Light& out, bool ntpSynced) {
+void LightController::update(const RecipeParams& recipe,
+                              uint8_t currentHour,
+                              bool ntpSynced,
+                              Light& out) {
+    out.onHour  = recipe.lightOnHour;
+    out.offHour = recipe.lightOffHour;
 
-    // Sincronizza fotoperiodo da config (aggiornabile da RTDB)
-    out.onHour  = _cfg.onHour;
-    out.offHour = _cfg.offHour;
-
-    // OFF — spento manuale
+    // ── OFF manuale ──────────────────────────────────────
     if (out.mode == DeviceMode::OFF) {
         _setRelay(false);
         out.state     = LightState::OFF_MANUAL;
@@ -31,7 +26,7 @@ void LightController::update(Light& out, bool ntpSynced) {
         return;
     }
 
-    // ON — acceso manuale
+    // ── ON manuale ───────────────────────────────────────
     if (out.mode == DeviceMode::ON) {
         _setRelay(true);
         out.state     = LightState::ON_MANUAL;
@@ -39,7 +34,15 @@ void LightController::update(Light& out, bool ntpSynced) {
         return;
     }
 
-    // AUTO — segue fotoperiodo NTP
+    // ── AUTO — nessuna ricetta attiva ────────────────────
+    if (!recipe.active) {
+        _setRelay(recipe.safety.offlineLightOff ? false : true);
+        out.state     = LightState::OFF_NO_CYCLE;
+        out.timestamp = millis();
+        return;
+    }
+
+    // ── AUTO — NTP non sincronizzato ─────────────────────
     if (!ntpSynced) {
         _setRelay(false);
         out.state     = LightState::OFF_NTP_MISSING;
@@ -47,27 +50,11 @@ void LightController::update(Light& out, bool ntpSynced) {
         return;
     }
 
-    bool shouldOn = _shouldBeOn(ntpSynced);
+    // ── AUTO — segue fotoperiodo dalla ricetta ───────────
+    bool shouldOn = recipe.isDaytime(currentHour);
     _setRelay(shouldOn);
     out.state     = shouldOn ? LightState::ON : LightState::OFF;
     out.timestamp = millis();
-}
-
-bool LightController::_shouldBeOn(bool ntpSynced) const {
-    if (!ntpSynced) return false;
-
-    struct tm timeInfo;
-    if (!getLocalTime(&timeInfo)) return false;
-
-    uint8_t hour = (uint8_t)timeInfo.tm_hour;
-
-    if (_cfg.onHour < _cfg.offHour) {
-        // Es. 06:00 → 22:00
-        return hour >= _cfg.onHour && hour < _cfg.offHour;
-    } else {
-        // Es. 22:00 → 06:00 (attraversa mezzanotte)
-        return hour >= _cfg.onHour || hour < _cfg.offHour;
-    }
 }
 
 void LightController::_setRelay(bool on) {

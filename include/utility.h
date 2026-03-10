@@ -3,16 +3,14 @@
 //  Posizione: include/utility.h
 //
 //  Pin, indirizzi sensori e macro di logging.
-//  Incluso da tutti i moduli del progetto.
 // ============================================================
 #pragma once
-
-#include <DS18B20Sensor.h>  // usa la libreria custom, non DallasTemperature
+#include <DS18B20Sensor.h>
 
 // ─────────────────────────────────────────────────────────────
 //  Pin
 // ─────────────────────────────────────────────────────────────
-#define PIN_ONE_WIRE          4
+#define PIN_ONE_WIRE          4   // Bus OneWire (entrambe le sonde DS18B20)
 #define PIN_FAN_PWM           18
 #define PIN_FAN_TACH          19
 #define PIN_I2C_SDA           21
@@ -22,24 +20,31 @@
 
 // ─────────────────────────────────────────────────────────────
 //  Indirizzi sensori
-//  Trovati con DS18B20Scanner e identificati fisicamente
 // ─────────────────────────────────────────────────────────────
 #define ADDR_SHT31 0x44
 
+// Sonda DS18B20 INTERNA (dentro il ripiano)
 inline DeviceAddress SONDA_INTERNA = {
     0x28, 0x48, 0x5b, 0xbc,
     0x00, 0x00, 0x00, 0xac
 };
 
+// Sonda DS18B20 ESTERNA (temperatura ambiente)
+// TODO: scansiona con DS18B20Scanner e inserisci l'indirizzo reale
+inline DeviceAddress SONDA_ESTERNA = {
+    0x28, 0xA0, 0x16, 0x6F, 
+    0x00, 0x00, 0x00, 0xA8
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Timing
+// ─────────────────────────────────────────────────────────────
+#define ENV_READ_INTERVAL     2000   // ms tra letture sensori
+#define VENT_UPDATE_INTERVAL  5000   // ms tra aggiornamenti ventilazione
+#define FIREBASE_PUSH_INTERVAL 60000 // ms tra push telemetria
+
 // ─────────────────────────────────────────────────────────────
 //  Macro di logging
-//
-//  DEBUG_MODE attivo   → Debug.logf() → visibile sul browser
-//  DEBUG_MODE inattivo → Serial.printf() → visibile su seriale
-//
-//  Uso:
-//    LOG_INFO("VentCtrl", "Speed=%d%%", speed);
-//    LOG_WARNING("ENV", "Temp alta: %.1f°C", temp);
 // ─────────────────────────────────────────────────────────────
 #ifdef DEBUG_MODE
     #include <DebugLogger.h>

@@ -1,33 +1,18 @@
 // ============================================================
 //  LightController.h
-//  Posizione: src/controllers/LightController.h
-//
-//  Gestisce il relay SSR della lampada LED.
-//
-//  Logica mode:
-//    AUTO → segue fotoperiodo NTP (onHour/offHour)
-//    ON   → relay chiuso indipendentemente dall'ora
-//    OFF  → relay aperto indipendentemente dall'ora
-//
-//  Dipendenze: config/SystemConfig.h, model/Light.h
+//  Posizione: src/5.controllers/LightController.h
 // ============================================================
 #pragma once
-#include <3.system/SystemConfig.h>
-#include <Light.h>
-
+#include "utility.h"
+#include "2.model/Light.h"
+#include "2.model/RecipeParams.h"
 
 class LightController {
 public:
-    explicit LightController(const LightConfig& config);
-
     void begin();
-
-    // Chiamata nel loop().
-    void update(Light& out, bool ntpSynced);
+    void update(const RecipeParams& recipe, uint8_t currentHour,
+                bool ntpSynced, Light& out);
 
 private:
-    const LightConfig& _cfg;
-
     void _setRelay(bool on);
-    bool _shouldBeOn(bool ntpSynced) const;
 };

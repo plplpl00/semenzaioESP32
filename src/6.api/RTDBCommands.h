@@ -1,60 +1,43 @@
 // ============================================================
 //  RTDBCommands.h
-//  Posizione: src/api/RTDBCommands.h
+//  Posizione: src/6.api/RTDBCommands.h
 //
-//  Riceve comandi in streaming da Realtime Database.
-//  Aggiorna SystemConfig e SystemState — i controller
-//  reagiscono al ciclo successivo.
-//
-//  Struttura RTDB:
-//    /semenzaio/esp32/commands/
-//      ventilation/
-//        mode: "AUTO" | "ON" | "OFF"
-//        manualSpeed: 0-100
-//      light/
-//        mode: "AUTO" | "ON" | "OFF"
-//        onHour: 0-23
-//        offHour: 0-23
-//      thresholds/
-//        tempIdealMax, tempWarnMax, tempCritical
-//        humidityIdealMax, humidityCritical
-//
-//  REGOLA: solo lettura, mai scrittura su RTDB.
+//  Legge da RTDB in streaming:
+//    devices/{deviceId}/shelves/0/
+//      mode, cycle/, safety/
 // ============================================================
 #pragma once
-
 #include <Firebase_ESP_Client.h>
-#include <3.system/SystemConfig.h>
-#include <3.system/SystemState.h>
+#include "3.system/SystemState.h"
 
 class RTDBCommands {
 public:
-    RTDBCommands(SystemConfig& config, SystemState& state);
-
+    RTDBCommands(SystemState& state);
     void begin(const String& deviceId);
-
-    // Chiamata nel loop() — controlla se ci sono nuovi dati
-    // dallo stream e li applica a SystemConfig/SystemState.
     void update();
 
 private:
-    SystemConfig& _cfg;
-    SystemState&  _state;
-
+    SystemState& _state;
     FirebaseData _stream;
     String       _deviceId;
     bool         _streamStarted = false;
+    bool         _initialLoad   = false;
 
-    String _pathCommands() {
-        String p = "/devices/semenzaio/commands"; return p;
+    String _basePath() {
+        return "/devices/" + _deviceId + "/shelves/0";
     }
 
     void _startStream();
+    void _loadInitialData();
     void _applyStream();
 
-    void _applyVentilation(FirebaseJson& json);
-    void _applyLight      (FirebaseJson& json);
-    void _applyThresholds (FirebaseJson& json);
+    // Parser specifici
+    void _parseMode(const String& path, const String& value);
+    void _parseCycle(FirebaseJson& json);
+    void _parseSafety(FirebaseJson& json);
+    void _parseClimateParams(FirebaseJson& json, const String& prefix,
+                              ClimateParams& params);
+    void _parseIrrigations(FirebaseJson& json, IrrigationParams& params);
 
-    DeviceMode _parseMode(const String& modeStr);
+    DeviceMode _stringToMode(const String& str);
 };

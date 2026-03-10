@@ -1,23 +1,15 @@
 // ============================================================
 //  DeviceMode.h
-//  Posizione: src/core/DeviceMode.h
+//  Posizione: src/1.core/DeviceMode.h
 //
-//  Modalità operativa comune a tutti i dispositivi
-//  controllabili del semenzaio.
-//
-//  ZERO dipendenze — questo file non include nulla.
+//  Modalità operativa per ogni ripiano.
+//  AUTO → segue la ricetta attiva
+//  ON   → forzato attivo (comando manuale)
+//  OFF  → forzato spento (comando manuale)
 // ============================================================
 #pragma once
-
 #include <stdint.h>
 
-// ─────────────────────────────────────────────────────────────
-//  DeviceMode
-//
-//  AUTO → il controller decide in base a sensori e config
-//  ON   → forzato attivo (comando manuale dall'app)
-//  OFF  → forzato spento (comando manuale)
-// ─────────────────────────────────────────────────────────────
 enum class DeviceMode : uint8_t {
     AUTO = 0,
     ON   = 1,

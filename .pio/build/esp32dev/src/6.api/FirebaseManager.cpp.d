@@ -152,11 +152,10 @@
  .pio/libdeps/esp32dev/Firebase\ Arduino\ Client\ Library\ for\ ESP8266\ and\ ESP32/src/functions/PolicyBuilder.h \
  .pio/libdeps/esp32dev/Firebase\ Arduino\ Client\ Library\ for\ ESP8266\ and\ ESP32/src/functions/FunctionsConfig.h \
  src/6.api/FirebaseManager.h src/6.api/FirestorePublisher.h \
- src/3.system/SystemConfig.h src/3.system/SystemState.h \
- src/2.model/Ventilation.h src/1.core/ActuatorTypes.h \
- src/2.model/ControllableDevice.h src/1.core/DeviceMode.h \
- src/2.model/Environment.h src/1.core/SensorTypes.h src/2.model/Light.h \
- src/6.api/RTDBCommands.h include/utility.h \
+ src/3.system/SystemState.h src/2.model/Environment.h \
+ src/1.core/SensorTypes.h src/2.model/Ventilation.h \
+ src/1.core/DeviceMode.h src/1.core/ActuatorTypes.h src/2.model/Light.h \
+ src/2.model/RecipeParams.h src/6.api/RTDBCommands.h include/utility.h \
  lib/DS18B20Sensor/DS18B20Sensor.h \
  .pio/libdeps/esp32dev/OneWire/OneWire.h \
  .pio/libdeps/esp32dev/OneWire/util/OneWire_direct_regtype.h \

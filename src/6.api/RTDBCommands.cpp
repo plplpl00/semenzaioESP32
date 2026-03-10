@@ -1,34 +1,39 @@
 // ============================================================
 //  RTDBCommands.cpp
-//  Posizione: src/api/RTDBCommands.cpp
+//  Posizione: src/6.api/RTDBCommands.cpp
 // ============================================================
-
+#include <Arduino.h>
 #include "RTDBCommands.h"
 #include "utility.h"
-#include <Arduino.h>
 
-RTDBCommands::RTDBCommands(SystemConfig& config, SystemState& state)
-    : _cfg(config), _state(state)
+RTDBCommands::RTDBCommands(SystemState& state)
+    : _state(state)
 {}
 
 void RTDBCommands::begin(const String& deviceId) {
     _deviceId = deviceId;
-    LOG_SUCCESS("RTDB", "Commands pronto");
+    LOG_SUCCESS("RTDB", "Commands pronto — shelf 0");
 }
 
-// ─────────────────────────────────────────────────────────────
-//  update()
-// ─────────────────────────────────────────────────────────────
 void RTDBCommands::update() {
+    // ── Prima lettura completa al boot ───────────────────
+    if (!_initialLoad) {
+        _loadInitialData();
+        return;
+    }
+
+    // ── Streaming ────────────────────────────────────────
     if (!_streamStarted) {
         _startStream();
         return;
     }
+
     if (!_stream.httpConnected()) {
         LOG_WARNING("RTDB", "Stream caduto — riavvio");
         _streamStarted = false;
         return;
     }
+
     if (Firebase.RTDB.readStream(&_stream)) {
         if (_stream.streamAvailable()) {
             _applyStream();
@@ -37,12 +42,60 @@ void RTDBCommands::update() {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  _loadInitialData() — lettura singola al boot
+// ─────────────────────────────────────────────────────────────
+void RTDBCommands::_loadInitialData() {
+    FirebaseData fbData;
+    String path = _basePath();
+
+    if (!Firebase.RTDB.getJSON(&fbData, path.c_str())) {
+        LOG_ERROR("RTDB", "Lettura iniziale fallita: %s",
+                  fbData.errorReason().c_str());
+        return;
+    }
+
+    FirebaseJson json;
+    json.setJsonData(fbData.jsonString());
+
+    // ── Mode ─────────────────────────────────────────────
+    FirebaseJsonData result;
+    if (json.get(result, "mode")) {
+        _state.ventilation.mode = _stringToMode(result.stringValue);
+        _state.light.mode       = _stringToMode(result.stringValue);
+        LOG_INFO("RTDB", "Mode iniziale: %s", result.stringValue.c_str());
+    }
+
+    // ── Cycle ────────────────────────────────────────────
+    FirebaseJsonData cycleResult;
+    if (json.get(cycleResult, "cycle")) {
+        FirebaseJson cycleJson;
+        cycleJson.setJsonData(cycleResult.stringValue.length() > 0
+            ? cycleResult.stringValue : "{}");
+
+        // Riestrai cycle come sotto-oggetto
+        String cycleStr;
+        json.toString(cycleStr);
+        FirebaseJson fullJson;
+        fullJson.setJsonData(fbData.jsonString());
+        _parseCycle(fullJson);
+    }
+
+    // ── Safety ───────────────────────────────────────────
+    _parseSafety(json);
+
+    _initialLoad = true;
+    LOG_SUCCESS("RTDB", "Dati iniziali caricati — ciclo %s",
+                _state.recipe.active ? "ATTIVO" : "inattivo");
+}
+
+// ─────────────────────────────────────────────────────────────
 //  _startStream()
 // ─────────────────────────────────────────────────────────────
 void RTDBCommands::_startStream() {
-    if (Firebase.RTDB.beginStream(&_stream, _pathCommands().c_str())) {
+    String path = _basePath();
+    if (Firebase.RTDB.beginStream(&_stream, path.c_str())) {
         _streamStarted = true;
-        LOG_SUCCESS("RTDB", "Stream avviato: %s", _pathCommands().c_str());
+        LOG_SUCCESS("RTDB", "Stream avviato: %s", path.c_str());
     } else {
         LOG_ERROR("RTDB", "Errore avvio stream: %s",
                   _stream.errorReason().c_str());
@@ -53,128 +106,145 @@ void RTDBCommands::_startStream() {
 //  _applyStream()
 // ─────────────────────────────────────────────────────────────
 void RTDBCommands::_applyStream() {
-    LOG_DEBUG("RTDB", "Dati ricevuti — path: %s  type: %s",
-              _stream.dataPath().c_str(),
-              _stream.dataType().c_str());
+    String path = _stream.dataPath();
+    String type = _stream.dataType();
 
-    FirebaseJson json;
+    LOG_DEBUG("RTDB", "Stream: path=%s type=%s", path.c_str(), type.c_str());
 
-    if (_stream.dataType() == "json") {
-        json.setJsonData(_stream.jsonString());
-    } else {
-        String path = _stream.dataPath();
-
-        
-        if (path == "/ventilation/mode") {
-            _state.ventilation.mode = _parseMode(_stream.stringData());
-            LOG_INFO("RTDB", "Ventilation mode: %s", _stream.stringData().c_str());
-            return;
-        }
-        if (path == "/ventilation/manualSpeed") {
-            _state.ventilation.manualSpeed = (uint8_t)constrain(_stream.intData(), 0, 100);
-            LOG_INFO("RTDB", "Manual speed: %d%%", _state.ventilation.manualSpeed);
-            return;
-        }
-        if (path == "/light/mode") {
-            _state.light.mode = _parseMode(_stream.stringData());
-            LOG_INFO("RTDB", "Light mode: %s", _stream.stringData().c_str());
-            return;
-        }
-        if (path == "/light/onHour") {
-            _cfg.light.onHour = (uint8_t)constrain(_stream.intData(), 0, 23);
-            LOG_INFO("RTDB", "Light onHour: %d", _cfg.light.onHour);
-            return;
-        }
-        if (path == "/light/offHour") {
-            _cfg.light.offHour = (uint8_t)constrain(_stream.intData(), 0, 23);
-            LOG_INFO("RTDB", "Light offHour: %d", _cfg.light.offHour);
-            return;
-        }
-        if (path == "/thresholds/tempIdealMax") {
-            _cfg.ventilation.tempIdealMax = _stream.floatData(); return;
-        }
-        if (path == "/thresholds/tempWarnMax") {
-            _cfg.ventilation.tempWarnMax = _stream.floatData(); return;
-        }
-        if (path == "/thresholds/tempCritical") {
-            _cfg.ventilation.tempCritical = _stream.floatData(); return;
-        }
-        if (path == "/thresholds/humidityIdealMax") {
-            _cfg.ventilation.humidityIdealMax = _stream.floatData(); return;
-        }
-        if (path == "/thresholds/humidityCritical") {
-            _cfg.ventilation.humidityCritical = _stream.floatData(); return;
+    // ── Aggiornamento singolo valore ─────────────────────
+    if (type != "json") {
+        if (path == "/mode") {
+            _parseMode(path, _stream.stringData());
         }
         return;
     }
 
-    _applyVentilation(json);
-    _applyLight(json);
-    _applyThresholds(json);
-}
+    // ── Aggiornamento JSON ───────────────────────────────
+    FirebaseJson json;
+    json.setJsonData(_stream.jsonString());
 
-
-// ─────────────────────────────────────────────────────────────
-//  _applyVentilation()
-// ─────────────────────────────────────────────────────────────
-void RTDBCommands::_applyVentilation(FirebaseJson& json) {
-    FirebaseJsonData result;
-
-    if (json.get(result, "ventilation/mode")) {
-        _state.ventilation.mode = _parseMode(result.stringValue);
-        LOG_INFO("RTDB", "Ventilation mode: %s", result.stringValue.c_str());
+    if (path == "/" || path == "") {
+        // Aggiornamento completo del nodo shelf
+        FirebaseJsonData result;
+        if (json.get(result, "mode")) {
+            _state.ventilation.mode = _stringToMode(result.stringValue);
+            _state.light.mode       = _stringToMode(result.stringValue);
+        }
+        _parseCycle(json);
+        _parseSafety(json);
+        LOG_INFO("RTDB", "Aggiornamento completo ricevuto");
     }
-    if (json.get(result, "ventilation/manualSpeed")) {
-        _state.ventilation.manualSpeed = (uint8_t)constrain(result.intValue, 0, 100);
-        LOG_INFO("RTDB", "Manual speed: %d%%", _state.ventilation.manualSpeed);
+    else if (path == "/cycle") {
+        _parseCycle(json);
+        LOG_INFO("RTDB", "Ciclo aggiornato — giorno %d",
+                 _state.recipe.dayOfCycle);
     }
-}
-
-// ─────────────────────────────────────────────────────────────
-//  _applyLight()
-// ─────────────────────────────────────────────────────────────
-void RTDBCommands::_applyLight(FirebaseJson& json) {
-    FirebaseJsonData result;
-
-    if (json.get(result, "light/mode")) {
-        _state.light.mode = _parseMode(result.stringValue);
-        LOG_INFO("RTDB", "Light mode: %s", result.stringValue.c_str());
+    else if (path == "/safety") {
+        _parseSafety(json);
+        LOG_INFO("RTDB", "Safety aggiornato");
     }
-    if (json.get(result, "light/onHour")) {
-        _cfg.light.onHour = (uint8_t)constrain(result.intValue, 0, 23);
-        LOG_INFO("RTDB", "Light onHour: %d", _cfg.light.onHour);
-    }
-    if (json.get(result, "light/offHour")) {
-        _cfg.light.offHour = (uint8_t)constrain(result.intValue, 0, 23);
-        LOG_INFO("RTDB", "Light offHour: %d", _cfg.light.offHour);
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-//  _applyThresholds()
-// ─────────────────────────────────────────────────────────────
-void RTDBCommands::_applyThresholds(FirebaseJson& json) {
-    FirebaseJsonData result;
-
-    if (json.get(result, "thresholds/tempIdealMax"))
-        _cfg.ventilation.tempIdealMax = result.floatValue;
-    if (json.get(result, "thresholds/tempWarnMax"))
-        _cfg.ventilation.tempWarnMax = result.floatValue;
-    if (json.get(result, "thresholds/tempCritical"))
-        _cfg.ventilation.tempCritical = result.floatValue;
-    if (json.get(result, "thresholds/humidityIdealMax"))
-        _cfg.ventilation.humidityIdealMax = result.floatValue;
-    if (json.get(result, "thresholds/humidityCritical"))
-        _cfg.ventilation.humidityCritical = result.floatValue;
-
-    LOG_INFO("RTDB", "Soglie aggiornate");
 }
 
 // ─────────────────────────────────────────────────────────────
 //  _parseMode()
 // ─────────────────────────────────────────────────────────────
-DeviceMode RTDBCommands::_parseMode(const String& modeStr) {
-    if (modeStr == "ON")  return DeviceMode::ON;
-    if (modeStr == "OFF") return DeviceMode::OFF;
+void RTDBCommands::_parseMode(const String& path, const String& value) {
+    DeviceMode mode = _stringToMode(value);
+    _state.ventilation.mode = mode;
+    _state.light.mode       = mode;
+    LOG_INFO("RTDB", "Mode → %s", value.c_str());
+}
+
+// ─────────────────────────────────────────────────────────────
+//  _parseCycle()
+// ─────────────────────────────────────────────────────────────
+void RTDBCommands::_parseCycle(FirebaseJson& json) {
+    FirebaseJsonData r;
+    RecipeParams& rp = _state.recipe;
+
+    // Campi base
+    if (json.get(r, "cycle/active"))       rp.active      = r.boolValue;
+    if (json.get(r, "cycle/dayOfCycle"))    rp.dayOfCycle  = (uint8_t)r.intValue;
+    if (json.get(r, "cycle/lightOnHour"))   rp.lightOnHour = (uint8_t)constrain(r.intValue, 0, 23);
+    if (json.get(r, "cycle/lightOffHour"))  rp.lightOffHour = (uint8_t)constrain(r.intValue, 0, 23);
+
+    if (json.get(r, "cycle/recipeName")) {
+        strncpy(rp.recipeName, r.stringValue.c_str(), sizeof(rp.recipeName) - 1);
+        rp.recipeName[sizeof(rp.recipeName) - 1] = '\0';
+    }
+
+    // Parametri giorno
+    _parseClimateParams(json, "cycle/day", rp.day);
+
+    // Parametri notte
+    _parseClimateParams(json, "cycle/night", rp.night);
+
+    // Irrigazione
+    _parseIrrigations(json, rp.irrigations);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  _parseClimateParams()
+// ─────────────────────────────────────────────────────────────
+void RTDBCommands::_parseClimateParams(FirebaseJson& json,
+                                        const String& prefix,
+                                        ClimateParams& params) {
+    FirebaseJsonData r;
+    String p = prefix + "/";
+
+    if (json.get(r, (p + "tempThreshold").c_str()))  params.tempThreshold = r.floatValue;
+    if (json.get(r, (p + "tempMaxAlarm").c_str()))    params.tempMaxAlarm  = r.floatValue;
+    if (json.get(r, (p + "humThreshold").c_str()))    params.humThreshold  = r.floatValue;
+    if (json.get(r, (p + "humMaxAlarm").c_str()))     params.humMaxAlarm   = r.floatValue;
+    if (json.get(r, (p + "speedMin").c_str()))        params.speedMin      = (uint8_t)r.intValue;
+    if (json.get(r, (p + "speedMax").c_str()))        params.speedMax      = (uint8_t)r.intValue;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  _parseIrrigations()
+// ─────────────────────────────────────────────────────────────
+void RTDBCommands::_parseIrrigations(FirebaseJson& json,
+                                      IrrigationParams& params) {
+    FirebaseJsonData r;
+
+    if (json.get(r, "cycle/irrigations/count"))
+        params.count = (uint8_t)constrain(r.intValue, 0, 4);
+    if (json.get(r, "cycle/irrigations/durationSec"))
+        params.durationSec = (uint16_t)r.intValue;
+
+    // Parse orari irrigazione
+    for (uint8_t i = 0; i < params.count && i < 4; i++) {
+        String timePath = "cycle/irrigations/times/" + String(i);
+        if (json.get(r, timePath.c_str())) {
+            // Parse "HH:MM"
+            String timeStr = r.stringValue;
+            int colonIdx = timeStr.indexOf(':');
+            if (colonIdx > 0) {
+                params.hours[i]   = (uint8_t)timeStr.substring(0, colonIdx).toInt();
+                params.minutes[i] = (uint8_t)timeStr.substring(colonIdx + 1).toInt();
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  _parseSafety()
+// ─────────────────────────────────────────────────────────────
+void RTDBCommands::_parseSafety(FirebaseJson& json) {
+    FirebaseJsonData r;
+    SafetyParams& sp = _state.recipe.safety;
+
+    if (json.get(r, "safety/externalTempMax"))  sp.externalTempMax = r.floatValue;
+    if (json.get(r, "safety/deltaMinForVent"))  sp.deltaMinForVent = r.floatValue;
+    if (json.get(r, "safety/offlineSpeedMin"))  sp.offlineSpeedMin = (uint8_t)r.intValue;
+    if (json.get(r, "safety/offlineLightOff"))  sp.offlineLightOff = r.boolValue;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  _stringToMode()
+// ─────────────────────────────────────────────────────────────
+DeviceMode RTDBCommands::_stringToMode(const String& str) {
+    if (str == "ON")  return DeviceMode::ON;
+    if (str == "OFF") return DeviceMode::OFF;
     return DeviceMode::AUTO;
 }

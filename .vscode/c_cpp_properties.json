@@ -39,7 +39,7 @@
                 "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/3.system",
                 "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/4.monitors",
                 "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/5.controllers",
-                "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/6.apis",
+                "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/6.api",
                 "C:/Users/andre/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/newlib/platform_include",
                 "C:/Users/andre/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/freertos/config/include",
                 "C:/Users/andre/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/freertos/config/include/freertos",
@@ -404,7 +404,7 @@
                     "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/3.system",
                     "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/4.monitors",
                     "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/5.controllers",
-                    "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/6.apis",
+                    "C:/Users/andre/Documents/PlatformIO/Projects/semenzaio/src/6.api",
                     "C:/Users/andre/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/newlib/platform_include",
                     "C:/Users/andre/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/freertos/config/include",
                     "C:/Users/andre/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/freertos/config/include/freertos",
@@ -737,7 +737,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=60118",
+                "PLATFORMIO=60119",
                 "ARDUINO_ESP32_DEV",
                 "DEBUG_MODE",
                 "FIREBASE_MODE",

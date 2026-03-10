@@ -1,40 +1,23 @@
 // ============================================================
 //  Ventilation.h
-//  Posizione: src/model/Ventilation.h
-//
-//  Model del dispositivo di ventilazione (ventola PWM).
-//  Eredita da ControllableDevice — può essere AUTO/ON/OFF.
-//
-//  Logica mode:
-//    AUTO → VentilationController calcola da temperatura/umidità
-//    ON   → usa manualSpeed (0-100%)
-//    OFF  → ventola ferma (spegnimento manuale)
-//
-//  Dipendenze: model/ControllableDevice.h, core/ActuatorTypes.h
+//  Posizione: src/2.model/Ventilation.h
 // ============================================================
 #pragma once
-
 #include <stdint.h>
-#include <1.core/ActuatorTypes.h>
-#include <ControllableDevice.h>
-// ─────────────────────────────────────────────────────────────
-//  Ventilation
-//
-//  SCRITTURA:
-//    VentilationController → speedPercent, rpm, stalled,
-//                            cause, timestamp
-//    RTDBCommands          → mode, manualSpeed
-// ─────────────────────────────────────────────────────────────
-struct Ventilation : public ControllableDevice {
+#include "1.core/DeviceMode.h"
+#include "1.core/ActuatorTypes.h"
 
-    // --- Stato runtime (scritto da VentilationController) ---
+struct Ventilation {
+    DeviceMode       mode         = DeviceMode::AUTO;
     uint8_t          speedPercent = 0;
     uint16_t         rpm          = 0;
     bool             stalled      = false;
     VentilationCause cause        = VentilationCause::MINIMUM;
     uint32_t         timestamp    = 0;
-
-    // --- Controllo manuale (scritto da RTDBCommands) ---
-    // Usato solo quando mode == ON.
     uint8_t          manualSpeed  = 50;
+
+    // Contributi individuali (per debug/telemetria)
+    uint8_t          speedFromTemp = 0;
+    uint8_t          speedFromHum  = 0;
+    bool             tempRampActive = false;  // false se delta sfavorevole
 };

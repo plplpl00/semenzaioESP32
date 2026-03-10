@@ -1,9 +1,5 @@
 .pio/build/esp32dev/src/5.controllers/LightController.cpp.o: \
  src/5.controllers/LightController.cpp \
- src/5.controllers/LightController.h src/3.system/SystemConfig.h \
- src/2.model/Light.h src/2.model/ControllableDevice.h \
- src/1.core/DeviceMode.h src/1.core/ActuatorTypes.h include/utility.h \
- lib/DS18B20Sensor/DS18B20Sensor.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp_arduino_version.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp8266-compat.h \
@@ -48,6 +44,8 @@
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/freertos_stats.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/io_pin_remap.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
+ src/5.controllers/LightController.h include/utility.h \
+ lib/DS18B20Sensor/DS18B20Sensor.h \
  .pio/libdeps/esp32dev/OneWire/OneWire.h \
  .pio/libdeps/esp32dev/OneWire/util/OneWire_direct_regtype.h \
  .pio/libdeps/esp32dev/DallasTemperature/DallasTemperature.h \
@@ -87,4 +85,6 @@
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/AsyncWebServerLogging.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-log.h \
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebHandlerImpl.h \
- .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebResponseImpl.h
+ .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebResponseImpl.h \
+ src/2.model/Light.h src/1.core/DeviceMode.h src/1.core/ActuatorTypes.h \
+ src/2.model/RecipeParams.h

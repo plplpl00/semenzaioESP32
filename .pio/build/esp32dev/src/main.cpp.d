@@ -84,11 +84,10 @@
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-log.h \
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebHandlerImpl.h \
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebResponseImpl.h \
- include/secrets.h src/3.system/SystemConfig.h src/3.system/SystemState.h \
- src/2.model/Ventilation.h src/1.core/ActuatorTypes.h \
- src/2.model/ControllableDevice.h src/1.core/DeviceMode.h \
- src/2.model/Environment.h src/1.core/SensorTypes.h src/2.model/Light.h \
- lib/WiFiManager/WiFiManager.h \
+ include/secrets.h src/3.system/SystemState.h src/2.model/Environment.h \
+ src/1.core/SensorTypes.h src/2.model/Ventilation.h \
+ src/1.core/DeviceMode.h src/1.core/ActuatorTypes.h src/2.model/Light.h \
+ src/2.model/RecipeParams.h lib/WiFiManager/WiFiManager.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src/ArduinoOTA.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/libraries/Update/src/Update.h \
  C:/Users/andre/.platformio/packages/framework-arduinoespressif32/cores/esp32/MD5Builder.h \

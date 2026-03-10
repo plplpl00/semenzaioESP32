@@ -86,7 +86,6 @@
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebHandlerImpl.h \
  .pio/libdeps/esp32dev/ESPAsyncWebServer/src/WebResponseImpl.h \
  src/5.controllers/VentilationController.h lib/PWMFan/PWMFan.h \
- src/3.system/SystemConfig.h src/2.model/Environment.h \
- src/1.core/SensorTypes.h src/2.model/Ventilation.h \
- src/1.core/ActuatorTypes.h src/2.model/ControllableDevice.h \
- src/1.core/DeviceMode.h
+ src/2.model/Environment.h src/1.core/SensorTypes.h \
+ src/2.model/Ventilation.h src/1.core/DeviceMode.h \
+ src/1.core/ActuatorTypes.h src/2.model/RecipeParams.h

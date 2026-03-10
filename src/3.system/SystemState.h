@@ -1,54 +1,59 @@
 // ============================================================
 //  SystemState.h
-//  Posizione: src/config/SystemState.h
+//  Posizione: src/3.system/SystemState.h
 //
 //  Snapshot runtime del semenzaio — unica istanza in main.cpp.
-//  Passata per riferimento a tutti i moduli.
 //
 //  REGOLE DI SCRITTURA:
 //    EnvironmentMonitor    → environment
-//    VentilationController → ventilation (speedPercent, rpm,
-//                            stalled, cause, timestamp)
-//    LightController       → light (state, timestamp)
-//    RTDBCommands          → ventilation.mode, ventilation.manualSpeed
+//    VentilationController → ventilation
+//    LightController       → light
+//    RTDBCommands          → recipe, ventilation.mode, light.mode
 //    main.cpp              → wifiConnected, ntpSynced, uptimeMs
-//    FirestorePublisher    → firebaseOnline
-//
-//  REGOLA DI LETTURA: tutti i moduli possono leggere tutto.
-//
-//  Dipendenze: model/Environment.h, model/Ventilation.h,
-//              model/Light.h
 // ============================================================
 #pragma once
-#include <2.model/Ventilation.h>
-#include <Environment.h>
-#include <Light.h>
+#include "2.model/Environment.h"
+#include "2.model/Ventilation.h"
+#include "2.model/Light.h"
+#include "2.model/RecipeParams.h"
 
-
-// ─────────────────────────────────────────────────────────────
-//  SystemState
-// ─────────────────────────────────────────────────────────────
 struct SystemState {
-
-    // ── Model dispositivi ─────────────────────────────────────
+    // ── Sensori ──────────────────────────────────────────
     Environment  environment;
+
+    // ── Attuatori ────────────────────────────────────────
     Ventilation  ventilation;
     Light        light;
 
-    // ── Connettività ─────────────────────────────────────────
+    // ── Ricetta attiva (dal RTDB via Cloud Function) ─────
+    RecipeParams recipe;
+
+    // ── Connettività ─────────────────────────────────────
     bool wifiConnected  = false;
     bool ntpSynced      = false;
     bool firebaseOnline = false;
 
-    // ── Uptime ───────────────────────────────────────────────
+    // ── Uptime ───────────────────────────────────────────
     uint32_t uptimeMs = 0;
 
-    // ── Metodi di comodo ─────────────────────────────────────
+    // ── Ora corrente (aggiornata nel loop) ───────────────
+    uint8_t currentHour   = 0;
+    uint8_t currentMinute = 0;
+
+    // ── Metodi ───────────────────────────────────────────
     bool isReady() const {
-        return environment.isValid();
+        return environment.isValid() && recipe.active;
     }
 
     bool hasAlert() const {
         return environment.hasAnyAlert() || ventilation.stalled;
+    }
+
+    bool isDaytime() const {
+        return recipe.isDaytime(currentHour);
+    }
+
+    const ClimateParams& currentClimate() const {
+        return recipe.currentClimate(currentHour);
     }
 };
