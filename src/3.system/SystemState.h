@@ -15,6 +15,7 @@
 #include "2.model/Environment.h"
 #include "2.model/Ventilation.h"
 #include "2.model/Light.h"
+#include "2.model/Heater.h"
 #include "2.model/RecipeParams.h"
 
 struct SystemState {
@@ -24,6 +25,7 @@ struct SystemState {
     // ── Attuatori ────────────────────────────────────────
     Ventilation  ventilation;
     Light        light;
+    Heater       heater;
 
     // ── Ricetta attiva (dal RTDB via Cloud Function) ─────
     RecipeParams recipe;
@@ -35,6 +37,9 @@ struct SystemState {
 
     // ── Uptime ───────────────────────────────────────────
     uint32_t uptimeMs = 0;
+
+    // ── Flag push immediato (settato da RTDBCommands) ────
+    bool commandReceived = false;
 
     // ── Ora corrente (aggiornata nel loop) ───────────────
     uint8_t currentHour   = 0;

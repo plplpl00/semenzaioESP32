@@ -111,6 +111,9 @@ void RTDBCommands::_applyStream() {
 
     LOG_DEBUG("RTDB", "Stream: path=%s type=%s", path.c_str(), type.c_str());
 
+     // ── Ignora aggiornamenti su /status (evita loop) ─────
+    if (path.startsWith("/status")) return;
+
     // ── Aggiornamento singolo valore ─────────────────────
     if (type != "json") {
         if (path == "/mode") {
@@ -152,6 +155,7 @@ void RTDBCommands::_parseMode(const String& path, const String& value) {
     DeviceMode mode = _stringToMode(value);
     _state.ventilation.mode = mode;
     _state.light.mode       = mode;
+    _state.commandReceived  = true;  // trigger push immediato status
     LOG_INFO("RTDB", "Mode → %s", value.c_str());
 }
 
@@ -190,15 +194,19 @@ void RTDBCommands::_parseClimateParams(FirebaseJson& json,
                                         const String& prefix,
                                         ClimateParams& params) {
     FirebaseJsonData r;
-    String p = prefix + "/";
+    String p = prefix;
+    p += "/";
 
-    if (json.get(r, (p + "tempThreshold").c_str()))  params.tempThreshold = r.floatValue;
-    if (json.get(r, (p + "tempMaxAlarm").c_str()))    params.tempMaxAlarm  = r.floatValue;
-    if (json.get(r, (p + "humThreshold").c_str()))    params.humThreshold  = r.floatValue;
-    if (json.get(r, (p + "humMaxAlarm").c_str()))     params.humMaxAlarm   = r.floatValue;
-    if (json.get(r, (p + "speedMin").c_str()))        params.speedMin      = (uint8_t)r.intValue;
-    if (json.get(r, (p + "speedMax").c_str()))        params.speedMax      = (uint8_t)r.intValue;
+    String key;
+    key = p; key += "tempThreshold";  if (json.get(r, key.c_str()))  params.tempThreshold = r.floatValue;
+    key = p; key += "tempMaxAlarm";   if (json.get(r, key.c_str()))  params.tempMaxAlarm  = r.floatValue;
+    key = p; key += "humThreshold";   if (json.get(r, key.c_str()))  params.humThreshold  = r.floatValue;
+    key = p; key += "humMaxAlarm";    if (json.get(r, key.c_str()))  params.humMaxAlarm   = r.floatValue;
+    key = p; key += "speedMin";       if (json.get(r, key.c_str()))  params.speedMin      = (uint8_t)r.intValue;
+    key = p; key += "speedMax";       if (json.get(r, key.c_str()))  params.speedMax      = (uint8_t)r.intValue;
 }
+
+
 
 // ─────────────────────────────────────────────────────────────
 //  _parseIrrigations()
@@ -214,7 +222,8 @@ void RTDBCommands::_parseIrrigations(FirebaseJson& json,
 
     // Parse orari irrigazione
     for (uint8_t i = 0; i < params.count && i < 4; i++) {
-        String timePath = "cycle/irrigations/times/" + String(i);
+        String timePath = "cycle/irrigations/times/";
+        timePath += String(i);
         if (json.get(r, timePath.c_str())) {
             // Parse "HH:MM"
             String timeStr = r.stringValue;

@@ -16,7 +16,8 @@
 #define PIN_I2C_SDA           21
 #define PIN_I2C_SCL           22
 #define PIN_VENTILATION_RELAY 16
-#define PIN_LIGHT_RELAY       17
+#define PIN_LIGHT_RELAY       12
+#define PIN_HEATER_RELAY      13
 
 // ─────────────────────────────────────────────────────────────
 //  Indirizzi sensori
@@ -41,7 +42,7 @@ inline DeviceAddress SONDA_ESTERNA = {
 // ─────────────────────────────────────────────────────────────
 #define ENV_READ_INTERVAL     2000   // ms tra letture sensori
 #define VENT_UPDATE_INTERVAL  5000   // ms tra aggiornamenti ventilazione
-#define FIREBASE_PUSH_INTERVAL 60000 // ms tra push telemetria
+#define FIREBASE_PUSH_INTERVAL 120000 // ms tra push (2 minuti)
 
 // ─────────────────────────────────────────────────────────────
 //  Macro di logging

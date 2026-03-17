@@ -42,7 +42,7 @@ WiFiConfig wifiCfg = {
     .enableOTA         = true,
     .enableNTP         = true,
     .gmtOffset         = 3600,
-    .daylightOffset    = 3600,
+    .daylightOffset    = 0,
     .maxRetries        = 20,
     .retryDelay        = 500,
     .reconnectInterval = 30000,
@@ -133,16 +133,29 @@ void loop() {
     // ── Monitor sensori ──────────────────────────────────
     envMonitor.update(state.environment);
 
-    // ── Controller (usano parametri dalla ricetta) ───────
+    // ── Ricevi comandi da Firebase ────────────────────────
+    #ifdef FIREBASE_MODE
+        firebase.receiveCommands();
+    #endif
+
+    // ── Controller (ora hanno il mode aggiornato) ────────
     ventCtrl.update(state.environment, state.recipe,
                     state.currentHour, state.ventilation);
 
     lightCtrl.update(state.recipe, state.currentHour,
                      state.ntpSynced, state.light);
 
-    // ── API Firebase ─────────────────────────────────────
+    // ── Push immediato se c'è stato un comando ──────────
     #ifdef FIREBASE_MODE
-        firebase.update();
+        if (state.commandReceived) {
+            state.commandReceived = false;
+            firebase.pushStatusNow();
+        }
+    #endif
+
+    // ── Invia status a Firebase ──────────────────────────
+    #ifdef FIREBASE_MODE
+        firebase.sendStatus();
     #endif
 
     // ── Sicurezza offline ────────────────────────────────

@@ -18,6 +18,9 @@ struct ClimateParams {
     float   humMaxAlarm    = 88.0f;
     uint8_t speedMin       = 20;
     uint8_t speedMax       = 80;
+    // Riscaldamento: 0 = disabilitato
+    float   heaterTempOn   = 0.0f;   // sotto questa → accendi (es. 16.0)
+    float   heaterHysteresis = 1.5f; // spegni a heaterTempOn + hysteresis
 };
 
 // ─────────────────────────────────────────────────────────────

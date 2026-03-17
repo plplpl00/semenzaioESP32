@@ -58,5 +58,5 @@ void LightController::update(const RecipeParams& recipe,
 }
 
 void LightController::_setRelay(bool on) {
-    digitalWrite(PIN_LIGHT_RELAY, on ? HIGH : LOW);
+    digitalWrite(PIN_LIGHT_RELAY, on ? LOW : HIGH);
 }
